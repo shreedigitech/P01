@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Billing</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f7fa;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input, select {
+      padding: 8px;
+      width: 150px;
+      box-sizing: border-box;
+    }
+    input#mobile, input#buyerName {
+      width: 100%;
+      max-width: 300px;
+    }
+    button {
+      padding: 8px 15px;
+      background: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    tfoot td {
+      font-weight: bold;
+    }
+    .summary {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    #qrCode {
+      margin-top: 20px;
+      text-align: center;
+    }
+    #qrCode img {
+      max-width: 150px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Billing System</h1>
+  <div class="input-group">
+    <label for="buyerName">Buyer Name:</label>
+    <input type="text" id="buyerName" placeholder="Enter buyer name" />
+  </div>
+  <div class="input-group">
+    <label for="mobile">Buyer Mobile Number:</label>
+    <input type="tel" id="mobile" placeholder="Enter mobile number (e.g. 919876543210)" />
+  </div>
+  <div class="input-group">
+    <select id="productSelect" onchange="fillRate()">
+      <option value="">-- Select Product --</option>
+      <option value="Apple Juice">Apple Juice</option>
+      <option value="Pineapple Juice">Pineapple Juice</option>
+    </select>
+    <input type="number" id="itemQty" placeholder="Quantity" min="1" />
+    <input type="number" id="itemRate" placeholder="Rate" readonly />
+    <button onclick="addItem()">Add Item</button>
+  </div>
+  <table id="billTable">
+    <thead>
+      <tr><th>Item Name</th><th>Qty</th><th>Rate</th><th>Total</th></tr>
+    </thead>
+    <tbody id="billBody"></tbody>
+    <tfoot>
+      <tr><td colspan="3">Subtotal</td><td id="subtotal">₹0.00</td></tr>
+      <tr><td colspan="3">GST (18%)</td><td id="tax">₹0.00</td></tr>
+      <tr><td colspan="3">Grand Total</td><td id="grandTotal">₹0.00</td></tr>
+    </tfoot>
+  </table>
+  <div class="summary">
+    <button onclick="downloadPDF()">Download Bill (PDF)</button>
+    <button onclick="resetBill()">Reset</button>
+    <button onclick="sendWhatsApp()">Send Bill on WhatsApp</button>
+  </div>
+  <div id="qrCode"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    let items = [];
+    const { jsPDF } = window.jspdf;
+    let billCounter = 1;
+    const products = {"Apple Juice": 50, "Pineapple Juice": 50};
+
+    function fillRate() {
+      const product = document.getElementById("productSelect").value;
+      document.getElementById("itemRate").value = products[product] || '';
+    }
+
+    function addItem() {
+      const name = document.getElementById('productSelect').value;
+      const qty = parseFloat(document.getElementById('itemQty').value);
+      const rate = parseFloat(document.getElementById('itemRate').value);
+      if (!name || isNaN(qty) || qty <= 0) return alert('Invalid input');
+      const total = qty * rate;
+      items.push({ name, qty, rate, total });
+      updateTable();
+      document.getElementById('productSelect').selectedIndex = 0;
+      document.getElementById('itemQty').value = '';
+      document.getElementById('itemRate').value = '';
+    }
+
+    function updateTable() {
+      const body = document.getElementById('billBody');
+      body.innerHTML = '';
+      let subtotal = 0;
+      items.forEach(item => {
+        subtotal += item.total;
+        body.innerHTML += `<tr><td>${item.name}</td><td>${item.qty}</td><td>₹${item.rate.toFixed(2)}</td><td>₹${item.total.toFixed(2)}</td></tr>`;
+      });
+      const tax = subtotal * 0.18;
+      const grandTotal = subtotal + tax;
+      document.getElementById('subtotal').innerText = `₹${subtotal.toFixed(2)}`;
+      document.getElementById('tax').innerText = `₹${tax.toFixed(2)}`;
+      document.getElementById('grandTotal').innerText = `₹${grandTotal.toFixed(2)}`;
+      generateQRCode(grandTotal);
+    }
+
+    function downloadPDF() {
+      if (!items.length) return alert("No items to download.");
+      const mobile = document.getElementById('mobile').value.trim();
+      const buyerName = document.getElementById('buyerName').value.trim() || "Customer";
+      const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+      const tax = subtotal * 0.18;
+      const grandTotal = subtotal + tax;
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text("Juice Billing System", 105, 15, null, null, "center");
+      doc.setFontSize(12);
+      doc.text(`Buyer Name: ${buyerName}`, 14, 30);
+      doc.text(`Buyer Mobile: ${mobile || 'N/A'}`, 14, 38);
+      let y = 48;
+      doc.text("Item Name", 14, y);
+      doc.text("Qty", 90, y);
+      doc.text("Rate (₹)", 120, y);
+      doc.text("Total (₹)", 160, y);
+      y += 8;
+      items.forEach(item => {
+        doc.text(item.name, 14, y);
+        doc.text(item.qty.toString(), 90, y);
+        doc.text(item.rate.toFixed(2), 120, y);
+        doc.text(item.total.toFixed(2), 160, y);
+        y += 8;
+      });
+      y += 5;
+      doc.text(`Subtotal: ₹${subtotal.toFixed(2)}`, 14, y);
+      y += 7;
+      doc.text(`GST (18%): ₹${tax.toFixed(2)}`, 14, y);
+      y += 7;
+      doc.setFontSize(14);
+      doc.text(`Grand Total: ₹${grandTotal.toFixed(2)}`, 14, y);
+      y += 10;
+      doc.setFontSize(12);
+      doc.text("Payment UPI ID: 9890590235@apl", 14, y);
+      doc.save(`bill_${String(billCounter).padStart(2, '0')}_${buyerName}.pdf`);
+      billCounter++;
+    }
+
+    function resetBill() {
+      items = [];
+      updateTable();
+      document.getElementById('mobile').value = '';
+      document.getElementById('buyerName').value = '';
+      document.getElementById('qrCode').innerHTML = '';
+    }
+
+    function sendWhatsApp() {
+      const mobile = document.getElementById('mobile').value.trim();
+      if (!mobile.match(/^\d{10,13}$/)) return alert("Invalid mobile number.");
+      if (!items.length) return alert("Add items first.");
+      const buyerName = document.getElementById('buyerName').value.trim();
+      const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+      const tax = subtotal * 0.18;
+      const grandTotal = subtotal + tax;
+      let message = `*Bill for ${buyerName || "Customer"}*\n\n`;
+      items.forEach(item => {
+        message += `${item.name} x${item.qty} @ ₹${item.rate.toFixed(2)} = ₹${item.total.toFixed(2)}\n`;
+      });
+      message += `\nSubtotal: ₹${subtotal.toFixed(2)}\nGST (18%): ₹${tax.toFixed(2)}\n*Grand Total: ₹${grandTotal.toFixed(2)}*\n\nPayment UPI ID: 9890XXXXXX@apl\nThank you!`;
+      const waUrl = `https://wa.me/${mobile}?text=${encodeURIComponent(message)}`;
+      window.open(waUrl, '_blank');
+      resetBill();
+    }
+
+    function generateQRCode(amount) {
+      if (amount <= 0) return document.getElementById('qrCode').innerHTML = '';
+      const upiUrl = `upi://pay?pa=9890XXXXXX@apl&pn=Seller&am=${amount.toFixed(2)}&cu=INR&tn=Bill%20Payment`;
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiUrl)}`;
+      document.getElementById('qrCode').innerHTML = `
+        <p><strong>Scan QR to Pay (UPI):</strong></p>
+        <img id="upiQR" src="${qrApiUrl}" alt="UPI Payment QR Code" />
+        <p style="font-size:0.9em;color:#555;">Amount: ₹${amount.toFixed(2)}</p>
+        <button onclick="openQRFullscreen()" style="margin-top:10px;background:#2ecc71;">Open QR in New Window</button>
+      `;
+    }
+
+    function openQRFullscreen() {
+      const qrImg = document.getElementById('upiQR');
+      if (!qrImg) return alert("QR not generated.");
+      const newWindow = window.open("", "_blank");
+      newWindow.document.write(`
+        <html><head><title>UPI QR</title></head>
+        <body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:white;">
+          <img src="${qrImg.src}" style="max-width:90%;max-height:90%;" />
+        </body></html>
+      `);
+    }
+  </script>
+</body>
+</html>
