@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Juice Bar — Admin Control Dashboard</title>
+  <style>
+    :root{
+      --bg:#0f172a; --card:#111827; --muted:#94a3b8;
+      --primary:#22c55e; --primary-dark:#16a34a; --accent:#38bdf8; 
+      --danger:#ef4444; --warning:#f59e0b; --white:#e5e7eb;
+    }
+    *{box-sizing:border-box}
+    body{font-family: system-ui, sans-serif; background:linear-gradient(180deg,var(--bg),#020617); color:var(--white); margin:0; padding:20px}
+    h1{margin:0 0 4px; font-size:24px; text-align:center}
+    .subtitle{color:var(--muted); text-align:center; margin-bottom:20px; font-size:12px}
+    .container{max-width:1250px; margin:0 auto;}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25); margin-bottom:16px}
+    
+    /* Stats Grid */
+    .stats-grid{display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px}
+    .stat-card{background:#0b1220; border:1px solid rgba(255,255,255,0.08); padding:14px; border-radius:12px; text-align:center}
+    .stat-num{font-size:22px; font-weight:700; color:var(--primary); margin-top:4px}
+
+    .row{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px}
+    label{font-size:11px; color:var(--muted); text-transform:uppercase}
+    input, select{padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.12); background:#0b1220; color:var(--white); font-size:13px}
+    button{padding:8px 14px; border-radius:8px; border:0; background:var(--primary); color:#00100a; cursor:pointer; font-weight:600; font-size:13px}
+    button:hover{background:var(--primary-dark)}
+    .btn-danger{background:var(--danger); color:#fff}
+    .btn-secondary{background:#334155; color:#e2e8f0}
+    .btn-warning{background:var(--warning); color:#111}
+
+    table{width:100%; border-collapse:collapse; background:#0b1220; border:1px solid rgba(255,255,255,0.08); border-radius:12px; overflow:hidden; font-size:12px; margin-top:10px}
+    th, td{padding:10px; border-bottom:1px solid rgba(255,255,255,0.06); text-align:left; vertical-align:top}
+    thead th{font-size:11px; color:var(--muted); text-transform:uppercase; background:rgba(255,255,255,0.02)}
+    .right{text-align:right}
+    .muted{color:var(--muted)}
+    
+    /* Badges */
+    .badge{padding:3px 8px; border-radius:6px; font-weight:600; font-size:11px; display:inline-block}
+    .badge-dine{background:rgba(56,189,248,0.15); color:var(--accent)}
+    .badge-delivery{background:rgba(245,158,11,0.15); color:var(--warning)}
+
+    #authOverlay{position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(2,6,23,0.95); display:flex; align-items:center; justify-content:center; z-index:1000}
+    .auth-card{background:#111827; border:1px solid rgba(255,255,255,0.12); padding:24px; border-radius:16px; width:300px; text-align:center}
+  </style>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- ADMIN PIN LOGIN MODAL -->
+  <div id="authOverlay">
+    <div class="auth-card">
+      <h2>Admin Authentication</h2>
+      <p class="subtitle">Enter Manager PIN to Access</p>
+      <input id="adminPin" type="password" placeholder="PIN: 1234" style="width:100%; margin-bottom:12px" />
+      <button style="width:100%" onclick="verifyAdminPin()">Login</button>
+      <div style="margin-top:12px; font-size:12px"><a href="user.html" style="color:var(--accent)">← Back to Customer Page</a></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Manager / Admin Control Dashboard</h1>
+    <p class="subtitle">Live Sync Active (Auto-updates every 5s & instant status changes)</p>
+
+    <!-- STATS OVERVIEW -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="muted">Total Orders</div>
+        <div class="stat-num" id="statTotalOrders">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="muted">Total Revenue</div>
+        <div class="stat-num" id="statTotalRevenue">₹0.00</div>
+      </div>
+      <div class="stat-card">
+        <div class="muted">Pending Orders</div>
+        <div class="stat-num" id="statPendingOrders" style="color:var(--warning)">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="muted">Home Deliveries</div>
+        <div class="stat-num" id="statDeliveries" style="color:var(--accent)">0</div>
+      </div>
+    </div>
+
+    <!-- CONTROLS & FILTERS -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between; margin:0">
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <div>
+            <label for="filterStatus">Filter Status</label>
+            <select id="filterStatus" onchange="renderOrdersTable()">
+              <option value="ALL">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div>
+            <label for="filterType">Order Type</label>
+            <select id="filterType" onchange="renderOrdersTable()">
+              <option value="ALL">All Types</option>
+              <option value="Dine-In">Dine-In / Counter</option>
+              <option value="Home Delivery">Home Delivery</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:flex-end">
+          <button class="btn-secondary" onclick="exportExcel()">📥 Export Orders to Excel</button>
+          <button class="btn-danger" onclick="clearAllData()">🗑️ Clear History</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDERS TABLE -->
+    <div class="card">
+      <div style="font-weight:600; margin-bottom:10px">Live Orders & Deliveries Registry</div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Order ID / Time</th>
+              <th>Customer Name & Contact</th>
+              <th>Order Type & Location / Address</th>
+              <th>Items Ordered</th>
+              <th class="right">Total (₹)</th>
+              <th>Payment Status</th>
+              <th>Order Status</th>
+              <th class="right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ordersTableBody">
+            <tr><td colspan="8" class="muted" style="text-align:center">No orders found</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function verifyAdminPin(){
+      if(document.getElementById('adminPin').value === '1234'){
+        document.getElementById('authOverlay').style.display = 'none';
+        loadAdminDashboard();
+        
+        // 1. Auto-update every 5 seconds
+        setInterval(loadAdminDashboard, 5000);
+      } else {
+        alert('Incorrect Admin PIN! Use 1234');
+      }
+    }
+
+    // 2. Instant update across tabs/pages when storage changes
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'bills') {
+        loadAdminDashboard();
+      }
+    });
+
+    const fmtMoney = (n) => `₹${Number(n||0).toFixed(2)}`;
+
+    function getBills(){
+      try { return JSON.parse(localStorage.getItem('bills') || '[]'); } catch(e){ return []; }
+    }
+
+    function saveBills(arr){
+      localStorage.setItem('bills', JSON.stringify(arr));
+      loadAdminDashboard();
+    }
+
+    function loadAdminDashboard(){
+      const bills = getBills();
+      
+      let totalRev = 0;
+      let pendingCount = 0;
+      let deliveryCount = 0;
+
+      bills.forEach(b => {
+        if(b.orderStatus !== 'Cancelled') totalRev += Number(b.total || 0);
+        if(!b.orderStatus || b.orderStatus === 'Pending') pendingCount++;
+        if(b.orderType === 'Home Delivery') deliveryCount++;
+      });
+
+      document.getElementById('statTotalOrders').textContent = bills.length;
+      document.getElementById('statTotalRevenue').textContent = fmtMoney(totalRev);
+      document.getElementById('statPendingOrders').textContent = pendingCount;
+      document.getElementById('statDeliveries').textContent = deliveryCount;
+
+      renderOrdersTable();
+    }
+
+    function renderOrdersTable(){
+      const bills = getBills();
+      const statusFilter = document.getElementById('filterStatus').value;
+      const typeFilter = document.getElementById('filterType').value;
+      const tbody = document.getElementById('ordersTableBody');
+
+      const filtered = bills.filter(b => {
+        const bStatus = b.orderStatus || 'Pending';
+        const bType = b.orderType || 'Dine-In';
+        if(statusFilter !== 'ALL' && bStatus !== statusFilter) return false;
+        if(typeFilter !== 'ALL' && bType !== typeFilter) return false;
+        return true;
+      });
+
+      if(filtered.length === 0){
+        tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center">No orders matching filter</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      filtered.forEach((b) => {
+        const timeStr = new Date(b.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const dateStr = new Date(b.date).toLocaleDateString();
+        const currentStatus = b.orderStatus || 'Pending';
+        const orderType = b.orderType || 'Dine-In';
+
+        let typeDetails = `<span class="badge badge-dine">🍽️ Dine-In / Table: ${b.tableNo || 'N/A'}</span>`;
+        if(orderType === 'Home Delivery'){
+          typeDetails = `
+            <span class="badge badge-delivery">🛵 Home Delivery</span><br/>
+            <small style="color:var(--accent)">📍 <strong>Address:</strong> ${b.deliveryAddress || 'Not provided'}</small>
+          `;
+        }
+
+        let itemsText = (b.items || []).map(i => `${i.name} (x${i.qty})`).join(', ');
+
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${b.billNo}</strong><br/><small class="muted">${dateStr} ${timeStr}</small></td>
+            <td><strong>${b.buyerName}</strong><br/><small class="muted">📞 ${b.mobile}</small></td>
+            <td>${typeDetails}</td>
+            <td><small>${itemsText}</small></td>
+            <td class="right"><strong>${fmtMoney(b.total)}</strong></td>
+            <td><span class="muted">${b.paymentStatus || 'Pending'}</span></td>
+            <td>
+              <select onchange="updateOrderStatus('${b.billNo}', this.value)" style="padding:4px; font-size:11px">
+                <option value="Pending" ${currentStatus==='Pending'?'selected':''}>⏳ Pending</option>
+                <option value="Completed" ${currentStatus==='Completed'?'selected':''}>✅ Completed</option>
+                <option value="Cancelled" ${currentStatus==='Cancelled'?'selected':''}>❌ Cancelled</option>
+              </select>
+            </td>
+            <td class="right">
+              <button class="btn-danger" style="padding:4px 8px; font-size:11px" onclick="deleteOrder('${b.billNo}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function updateOrderStatus(billNo, newStatus){
+      let bills = getBills();
+      const idx = bills.findIndex(b => b.billNo === billNo);
+      if(idx >= 0){
+        bills[idx].orderStatus = newStatus;
+        saveBills(bills);
+      }
+    }
+
+    function deleteOrder(billNo){
+      if(!confirm(`Are you sure you want to delete order ${billNo}?`)) return;
+      let bills = getBills().filter(b => b.billNo !== billNo);
+      saveBills(bills);
+    }
+
+    function clearAllData(){
+      if(!confirm("WARNING: This will delete ALL order history. Continue?")) return;
+      localStorage.removeItem('bills');
+      loadAdminDashboard();
+    }
+
+    function exportExcel(){
+      const bills = getBills();
+      if(bills.length === 0){ alert('No records to export'); return; }
+      const rows = [['Order ID', 'Date', 'Customer Name', 'Mobile', 'Order Type', 'Table / Delivery Address', 'Items', 'Subtotal', 'Tax', 'Grand Total', 'Payment Status', 'Order Status']];
+      bills.forEach(b => {
+        rows.push([
+          b.billNo, 
+          b.date, 
+          b.buyerName, 
+          b.mobile, 
+          b.orderType || 'Dine-In', 
+          b.orderType === 'Home Delivery' ? b.deliveryAddress : b.tableNo, 
+          (b.items||[]).map(i=>`${i.name} x${i.qty}`).join('; '), 
+          b.subtotal, 
+          b.tax, 
+          b.total, 
+          b.paymentStatus, 
+          b.orderStatus || 'Pending'
+        ]);
+      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'All Orders');
+      XLSX.writeFile(wb, `JuiceBar_Orders_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+  </script>
+</body>
+</html>
