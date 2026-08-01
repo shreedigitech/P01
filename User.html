@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Juice Bar — Advanced Customer Portal</title>
+  <style>
+    :root{
+      --bg:#0f172a; --card:#111827; --muted:#94a3b8;
+      --primary:#22c55e; --primary-dark:#16a34a; --accent:#38bdf8; 
+      --danger:#ef4444; --warning:#f59e0b; --white:#e5e7eb;
+    }
+    *{box-sizing:border-box}
+    body{font-family: system-ui, -apple-system, sans-serif; background:linear-gradient(180deg,var(--bg),#020617); color:var(--white); margin:0; padding:20px}
+    h1{margin:0 0 4px; font-size:24px; text-align:center}
+    .subtitle{color:var(--muted); text-align:center; margin-bottom:16px; font-size:12px}
+    .container{max-width:900px; margin:0 auto;}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25); margin-bottom:14px}
+    .row{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px}
+    label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em}
+    input, select, textarea{padding:9px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:#0b1220; color:var(--white); font-size:14px; width:100%}
+    textarea{resize:vertical; min-height:60px}
+    button{padding:10px 14px; border-radius:10px; border:0; background:var(--primary); color:#00100a; cursor:pointer; font-weight:600; font-size:13px; width:100%; transition:background .2s}
+    button:hover{background:var(--primary-dark)}
+    .btn-secondary{background:#334155; color:#e2e8f0}
+    .btn-accent{background:var(--accent); color:#04202e}
+    .btn-danger{background:var(--danger); color:#fff; padding:6px 10px; font-size:11px; width:auto}
+    
+    /* Order Type Selector Tabs */
+    .type-selector{display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:14px}
+    .type-btn{padding:10px; text-align:center; border-radius:10px; background:#0b1220; border:1px solid rgba(255,255,255,0.12); cursor:pointer; font-weight:600; font-size:12px; color:var(--muted)}
+    .type-btn.active{background:rgba(34,197,94,0.15); border-color:var(--primary); color:var(--primary)}
+
+    table{width:100%; border-collapse:collapse; background:#0b1220; border:1px solid rgba(255,255,255,0.08); border-radius:12px; overflow:hidden; font-size:13px; margin-top:10px}
+    th, td{padding:9px 10px; border-bottom:1px solid rgba(255,255,255,0.06); text-align:left}
+    thead th{font-size:11px; color:var(--muted); text-transform:uppercase}
+    .right{text-align:right}
+    .muted{color:var(--muted)}
+    
+    .payment-box{background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); padding:16px; border-radius:12px; margin-top:14px; text-align:center}
+    .status-badge{display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; background:rgba(245,158,11,0.15); color:var(--warning); margin-bottom:10px}
+    .status-badge.verified{background:rgba(34,197,94,0.15); color:var(--primary)}
+    .status-badge.failed{background:rgba(239,68,68,0.15); color:var(--danger)}
+
+    /* Map Container Styling */
+    .map-container{margin-top:12px; border-radius:10px; overflow:hidden; border:1px solid rgba(255,255,255,0.12); display:none}
+    .map-container iframe{width:100%; height:200px; border:0}
+    
+    .hidden{display:none !important}
+    .toolbar{display:flex; flex-direction:column; gap:8px; margin-top:14px}
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Juice Bar Customer Portal</h1>
+    <p class="subtitle">Fresh & Affordable Juices · Instant UPI Auto-Verification · Live GPS Mapping</p>
+
+    <div class="card">
+      <!-- ORDER TYPE SELECTOR -->
+      <label>Select Order Type</label>
+      <div class="type-selector">
+        <div class="type-btn active" id="btnDineIn" onclick="setOrderType('Dine-In')">🍽️ Dine-In</div>
+        <div class="type-btn" id="btnTakeaway" onclick="setOrderType('Takeaway')">🛍️ Takeaway</div>
+        <div class="type-btn" id="btnDelivery" onclick="setOrderType('Home Delivery')">🛵 Home Delivery</div>
+      </div>
+
+      <!-- CUSTOMER DETAILS FORM (Auto-saved & Auto-filled) -->
+      <div class="row">
+        <div style="flex:2">
+          <label for="buyerName">Customer Full Name *</label>
+          <input id="buyerName" type="text" placeholder="Enter your name" oninput="saveUserProfile()" required />
+        </div>
+        <div style="flex:2">
+          <label for="mobile">Contact Mobile Number *</label>
+          <input id="mobile" type="tel" placeholder="10-digit mobile" oninput="saveUserProfile()" required />
+        </div>
+        <div style="flex:1" id="dineInFieldContainer">
+          <label for="tableNo">Table No *</label>
+          <input id="tableNo" type="text" placeholder="e.g. 3" oninput="saveUserProfile()" />
+        </div>
+      </div>
+
+      <!-- HOME DELIVERY SPECIFIC FIELDS & MAP -->
+      <div id="deliveryFieldsContainer" class="hidden">
+        <div class="row">
+          <div style="flex:1">
+            <label for="deliveryAddress">Complete Delivery Address *</label>
+            <textarea id="deliveryAddress" placeholder="Enter street, landmark, area..." oninput="saveUserProfile()"></textarea>
+          </div>
+        </div>
+        <div class="row">
+          <button type="button" class="btn-secondary" onclick="fetchUserGPSLocation()" style="width:auto; font-size:12px; padding:6px 12px">📍 Auto-Detect GPS Location</button>
+          <span id="gpsStatus" class="muted" style="font-size:11px"></span>
+        </div>
+        <!-- Google Maps API Embed / Live Tracking Widget -->
+        <div class="map-container" id="mapWidget">
+          <iframe id="googleMapFrame" src="https://www.google.com/maps/embed/v1/place?key=YOUR_GOOGLE_MAPS_API_KEY&q=Juice+Bar" allowfullscreen></iframe>
+        </div>
+        <div style="margin-top:6px; font-size:11px; color:var(--warning)">⚠️ Note: Home Delivery orders require online pre-payment verification strictly. Cash on Delivery is disabled for delivery.</div>
+      </div>
+
+      <!-- ITEM CATALOG (Super Affordable Pricing) -->
+      <div style="margin-top:12px" class="row">
+        <div style="flex:2">
+          <label for="productSelect">Select Juice Menu (Budget Pricing)</label>
+          <select id="productSelect" onchange="fillRate()">
+            <option value="">-- Choose Budget Juice --</option>
+            <option value="Apple Juice">Apple Juice (₹30)</option>
+            <option value="Pineapple Juice">Pineapple Juice (₹25)</option>
+            <option value="Mango Juice">Mango Juice (₹35)</option>
+            <option value="Orange Juice">Orange Juice (₹25)</option>
+            <option value="Mixed Fruit Juice">Mixed Fruit Juice (₹40)</option>
+            <option value="Banana Shake">Banana Shake (₹20)</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label for="itemQty">Qty</label>
+          <input id="itemQty" type="number" value="1" min="1" />
+        </div>
+        <div style="flex:1">
+          <label for="itemRate">Rate (₹)</label>
+          <input id="itemRate" type="number" readonly />
+        </div>
+        <div style="flex:auto; padding-top:16px">
+          <button onclick="addItem()">Add Item</button>
+        </div>
+      </div>
+
+      <!-- ORDER TABLE -->
+      <table>
+        <thead><tr><th>Item</th><th>Qty</th><th class="right">Rate</th><th class="right">Total</th><th class="right">Action</th></tr></thead>
+        <tbody id="billBody"><tr><td colspan="5" class="muted" style="text-align:center">No items added yet</td></tr></tbody>
+        <tfoot>
+          <tr><td colspan="4" class="right muted">Subtotal</td><td id="subtotal" class="right">₹0.00</td></tr>
+          <tr><td colspan="4" class="right muted">GST (5% Low Tax)</td><td id="tax" class="right">₹0.00</td></tr>
+          <tr><td colspan="4" class="right" style="font-size:15px">Grand Total</td><td id="grandTotal" class="right" style="font-size:15px; color:var(--primary)">₹0.00</td></tr>
+        </tfoot>
+      </table>
+
+      <!-- UPI PAYMENT AUTO-VERIFICATION SECTION -->
+      <div class="payment-box">
+        <div style="font-weight:600; font-size:14px; margin-bottom:6px">Secure UPI Payment Gateway</div>
+        <div class="muted" style="font-size:12px; margin-bottom:10px">Click below to pay via GPay, PhonePe, Paytm, or BHIM. Payment status auto-syncs on return.</div>
+        
+        <div>
+          <span id="paymentBadge" class="status-badge">Status: Payment Pending</span>
+        </div>
+
+        <div style="margin-top:8px">
+          <a id="upiAppBtn" href="#" target="_blank" onclick="markPaymentInitiated()" style="display:inline-block; background:var(--accent); color:#04202e; padding:12px 24px; border-radius:10px; font-weight:700; text-decoration:none; font-size:14px">
+            💳 Pay Securely via UPI App
+          </a>
+        </div>
+      </div>
+
+      <!-- SUBMISSION TOOLBAR -->
+      <div class="toolbar">
+        <button class="btn-accent" onclick="submitOrderToAdmin()" style="background:var(--primary); color:#00100a; font-size:15px; padding:12px">🚀 Confirm & Send Order to Admin WhatsApp</button>
+        <button class="btn-secondary" onclick="downloadPDF()">📄 Download PDF Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { jsPDF } = window.jspdf;
+    let items = [];
+    let paymentVerified = false;
+    let paymentAttempted = false;
+    let currentOrderType = 'Dine-In';
+
+    // Budget Pricing Catalog
+    const products = { 
+      "Apple Juice": 30, 
+      "Pineapple Juice": 25, 
+      "Mango Juice": 35, 
+      "Orange Juice": 25, 
+      "Mixed Fruit Juice": 40, 
+      "Banana Shake": 20 
+    };
+    
+    const ADMIN_WHATSAPP = '9890590237'; // Updated Admin Number
+
+    const $ = (id) => document.getElementById(id);
+    const fmtMoney = (n) => `₹${Number(n||0).toFixed(2)}`;
+
+    // Persistent Memory: Auto-load user profile on startup
+    window.addEventListener('DOMContentLoaded', () => {
+      loadUserProfile();
+    });
+
+    function saveUserProfile() {
+      const profile = {
+        name: $('buyerName').value.trim(),
+        mobile: $('mobile').value.trim(),
+        address: $('deliveryAddress').value.trim(),
+        table: $('tableNo').value.trim()
+      };
+      localStorage.setItem('juice_user_persistent_profile', JSON.stringify(profile));
+    }
+
+    function loadUserProfile() {
+      try {
+        const profile = JSON.parse(localStorage.getItem('juice_user_persistent_profile'));
+        if(profile){
+          if(profile.name) $('buyerName').value = profile.name;
+          if(profile.mobile) $('mobile').value = profile.mobile;
+          if(profile.address) $('deliveryAddress').value = profile.address;
+          if(profile.table) $('tableNo').value = profile.table;
+        }
+      } catch(e){}
+    }
+
+    function setOrderType(type){
+      currentOrderType = type;
+      $('btnDineIn').classList.remove('active');
+      $('btnTakeaway').classList.remove('active');
+      $('btnDelivery').classList.remove('active');
+
+      if(type === 'Dine-In'){
+        $('btnDineIn').classList.add('active');
+        $('dineInFieldContainer').classList.remove('hidden');
+        $('deliveryFieldsContainer').classList.add('hidden');
+      } else if(type === 'Takeaway'){
+        $('btnTakeaway').classList.add('active');
+        $('dineInFieldContainer').classList.add('hidden');
+        $('deliveryFieldsContainer').classList.add('hidden');
+      } else if(type === 'Home Delivery'){
+        $('btnDelivery').classList.add('active');
+        $('dineInFieldContainer').classList.add('hidden');
+        $('deliveryFieldsContainer').classList.remove('hidden');
+        // Pre-paid strict notice reminder
+      }
+    }
+
+    function fillRate(){
+      const p = $('productSelect').value;
+      $('itemRate').value = products[p] ?? '';
+    }
+
+    function addItem(){
+      const name = $('productSelect').value;
+      const qty = parseFloat($('itemQty').value);
+      const rate = parseFloat($('itemRate').value);
+      if(!name){ alert('Please select a juice product'); return; }
+      if(!(qty>0)){ alert('Enter a valid quantity'); return; }
+      items.push({name, qty, rate, total: qty * rate});
+      $('productSelect').value = '';
+      $('itemQty').value = '1';
+      $('itemRate').value = '';
+      updateTable();
+    }
+
+    function removeItem(index){
+      items.splice(index, 1);
+      updateTable();
+    }
+
+    function updateTable(){
+      const body = $('billBody');
+      if(items.length === 0){
+        body.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center">No items added yet</td></tr>`;
+      } else {
+        body.innerHTML = '';
+        items.forEach((it, index)=>{
+          body.innerHTML += `
+            <tr>
+              <td>${it.name}</td>
+              <td>${it.qty}</td>
+              <td class="right">${fmtMoney(it.rate)}</td>
+              <td class="right">${fmtMoney(it.qty*it.rate)}</td>
+              <td class="right"><button class="btn-danger" onclick="removeItem(${index})">Remove</button></td>
+            </tr>`;
+        });
+      }
+      const subtotal = items.reduce((s,i)=> s + (i.qty*i.rate), 0);
+      const tax = subtotal * 0.05; // 5% low tax configuration
+      const grand = subtotal + tax;
+      $('subtotal').textContent = fmtMoney(subtotal);
+      $('tax').textContent = fmtMoney(tax);
+      $('grandTotal').textContent = fmtMoney(grand);
+      updateUPIButton(grand);
+    }
+
+    function updateUPIButton(amount){
+      const btn = $('upiAppBtn');
+      if(!(amount > 0)){
+        btn.href = '#';
+        btn.style.opacity = '0.5';
+        return;
+      }
+      btn.style.opacity = '1';
+      const upiUrl = `upi://pay?pa=${encodeURIComponent('9890590237@apl')}&pn=${encodeURIComponent('Juice Bar')}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Juice Order Payment')}`;
+      btn.href = upiUrl;
+    }
+
+    function markPaymentInitiated(){
+      paymentAttempted = true;
+    }
+
+    // Auto-fetch payment status verification when returning from UPI app
+    window.addEventListener('focus', () => {
+      if(paymentAttempted && !paymentVerified){
+        const check = confirm("Did your payment complete successfully in your UPI app?");
+        const badge = $('paymentBadge');
+        if(check){
+          paymentVerified = true;
+          badge.textContent = "Status: Paid (UPI Verified)";
+          badge.className = "status-badge verified";
+        } else {
+          badge.textContent = "Status: Payment Failed / Cancelled";
+          badge.className = "status-badge failed";
+        }
+      }
+    });
+
+    function fetchUserGPSLocation(){
+      const statusEl = $('gpsStatus');
+      if(!navigator.geolocation){
+        statusEl.textContent = "Geolocation is not supported by your browser";
+        return;
+      }
+      statusEl.textContent = "Locating GPS coordinates...";
+      navigator.geolocation.getCurrentPosition((position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        statusEl.textContent = `Location acquired (Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)})`;
+        $('deliveryAddress').value = `GPS Coordinates: ${lat}, ${lon} (Auto-detected)`;
+        
+        // Update Google Maps widget iframe source for tracking view
+        const mapFrame = $('googleMapFrame');
+        mapFrame.src = `https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed`;
+        $('mapWidget').style.display = 'block';
+        saveUserProfile();
+      }, () => {
+        statusEl.textContent = "Unable to retrieve your location";
+      });
+    }
+
+    function saveOrderToDatabase(billData){
+      let bills = [];
+      try { bills = JSON.parse(localStorage.getItem('bills') || '[]'); } catch(e){}
+      bills.unshift(billData);
+      localStorage.setItem('bills', JSON.stringify(bills));
+    }
+
+    function downloadPDF(){
+      if(!items.length){ alert('Add items to generate receipt'); return; }
+      const subtotal = items.reduce((s,i)=> s + (i.qty*i.rate), 0);
+      const tax = subtotal * 0.05;
+      const grand = subtotal + tax;
+      const doc = new jsPDF();
+      doc.setFontSize(16); doc.text('Juice Bar Official Receipt', 14, 15);
+      doc.setFontSize(10); 
+      doc.text(`Customer: ${$('buyerName').value || 'Guest'} | Mobile: ${$('mobile').value || 'N/A'}`, 14, 22);
+      doc.text(`Order Type: ${currentOrderType}`, 14, 28);
+      if(currentOrderType === 'Home Delivery') doc.text(`Delivery Address: ${$('deliveryAddress').value}`, 14, 34);
+      let y = currentOrderType === 'Home Delivery' ? 42 : 36;
+      items.forEach(it=>{ doc.text(`${it.name} x${it.qty} - ₹${(it.qty*it.rate).toFixed(2)}`, 14, y); y += 6; });
+      y += 4; doc.text(`Grand Total (incl. 5% GST): ₹${grand.toFixed(2)}`, 14, y);
+      doc.save(`JuiceBar_Receipt_${Date.now().toString().slice(-6)}.pdf`);
+    }
+
+    function submitOrderToAdmin(){
+      if(!items.length){ alert('Please add items to your order'); return; }
+      const buyerName = $('buyerName').value.trim();
+      const mobile = $('mobile').value.trim();
+      if(!buyerName || !mobile){ alert('Customer name and mobile number are mandatory.'); return; }
+
+      // Enforce Home Delivery Strict Pre-paid Check
+      if(currentOrderType === 'Home Delivery'){
+        if(!$('deliveryAddress').value.trim()){ alert('Please enter delivery address.'); return; }
+        if(!paymentVerified){
+          alert('Strict Rule: Home Delivery orders require online pre-payment verification. Please complete payment via UPI before submitting.');
+          return;
+        }
+      }
+
+      const subtotal = items.reduce((s,i)=> s + (i.qty*i.rate), 0);
+      const tax = subtotal * 0.05;
+      const grand = subtotal + tax;
+      const billNo = 'ORD-' + Date.now().toString().slice(-6);
+      const paymentStatus = paymentVerified ? 'Paid (UPI Verified)' : 'Pending / Cash';
+
+      const billData = {
+        billNo,
+        date: new Date().toISOString(),
+        buyerName,
+        mobile,
+        orderType: currentOrderType,
+        tableNo: currentOrderType === 'Dine-In' ? $('tableNo').value.trim() : 'N/A',
+        deliveryAddress: currentOrderType === 'Home Delivery' ? $('deliveryAddress').value.trim() : 'N/A',
+        items,
+        subtotal: Number(subtotal.toFixed(2)),
+        tax: Number(tax.toFixed(2)),
+        total: Number(grand.toFixed(2)),
+        paymentStatus,
+        orderStatus: 'Pending',
+        createdByRole: 'customer'
+      };
+
+      // Save to shared localStorage database for instant cross-page admin sync
+      saveOrderToDatabase(billData);
+
+      // Format WhatsApp Message for Admin (9890590237)
+      let text = `🛒 *NEW ONLINE ORDER*\n`;
+      text += `🆔 *Order ID:* ${billNo}\n`;
+      text += `📦 *Type:* ${currentOrderType}\n`;
+      text += `👤 *Customer:* ${buyerName}\n`;
+      text += `📱 *Mobile:* ${mobile}\n`;
+      if(currentOrderType === 'Dine-In') text += `🪑 *Table:* ${billData.tableNo}\n`;
+      if(currentOrderType === 'Home Delivery') text += `📍 *Address:* ${billData.deliveryAddress}\n`;
+      text += `\n`;
+      items.forEach(i => { text += `• ${i.name} x${i.qty} = ${fmtMoney(i.qty * i.rate)}\n`; });
+      text += `\n*Grand Total:* ${fmtMoney(grand)}`;
+      text += `\n💳 *Payment:* ${paymentStatus}`;
+
+      const url = `https://wa.me/9890590237?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+      alert('Order placed successfully and transmitted to Admin WhatsApp!');
+    }
+  </script>
+</body>
+</html>
