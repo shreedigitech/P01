@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Plumbing and Electrical Shop Management System">
+  <title>ShopFlow • Plumbing & Electrical</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+<div id="toast" class="toast"></div>
+
+<section id="authView" class="auth-shell">
+  <div class="auth-card">
+    <div class="brand-mark">⚡🚰</div>
+    <h1>ShopFlow</h1>
+    <p>Plumbing & Electrical Shop Management</p>
+    <form id="loginForm">
+      <label>Shop Password<input id="loginPassword" type="password" required autocomplete="current-password" placeholder="Enter shop password"></label>
+      <label class="check"><input id="rememberLogin" type="checkbox" checked> Remember on this device</label>
+      <button class="primary wide" type="submit">Unlock Shop</button>
+      <button class="secondary wide" type="button" id="previewBtn">Preview / Open UI</button>
+    </form>
+    <p class="muted small">Temporary local password-hash login. Supabase Auth is disabled in this version. Default password: <b>Shop@1234</b>. Change it from Settings.</p>
+  </div>
+</section>
+
+<div id="appView" class="app hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span>⚡🚰</span><div><b>ShopFlow</b><small>Plumbing & Electrical</small></div></div>
+    <nav>
+      <button data-page="dashboard">🏠 Dashboard</button>
+      <button data-page="billing">🧾 Billing</button>
+      <button data-page="purchases">🛒 Purchases</button>
+      <button data-page="products">📦 Products</button>
+      <button data-page="customers">👥 Customers</button>
+      <button data-page="suppliers">🚚 Suppliers</button>
+      <button data-page="reports">📊 Reports</button>
+      <button data-page="expenses">💰 Expenses</button>
+      <button data-page="settings">⚙️ Settings</button>
+    </nav>
+    <div class="side-footer">
+      <span id="userBadge">User</span>
+      <button id="logoutBtn" class="ghost">Sign out</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button id="menuBtn" class="icon-btn">☰</button>
+      <div>
+        <h2 id="pageTitle">Dashboard</h2>
+        <span id="shopNameTop" class="muted"></span>
+      </div>
+      <div class="top-actions"><button id="refreshBtn" class="icon-btn">↻</button></div>
+    </header>
+
+    <section id="dashboardPage" class="page"></section>
+    <section id="billingPage" class="page hidden"></section>
+    <section id="purchasesPage" class="page hidden"></section>
+    <section id="productsPage" class="page hidden"></section>
+    <section id="customersPage" class="page hidden"></section>
+    <section id="suppliersPage" class="page hidden"></section>
+    <section id="reportsPage" class="page hidden"></section>
+    <section id="expensesPage" class="page hidden"></section>
+    <section id="settingsPage" class="page hidden"></section>
+  </main>
+</div>
+
+<div id="modalRoot"></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
