@@ -382,7 +382,33 @@ function renderSettings(){const s=state.shop||{};$("#settingsPage").innerHTML=`<
 function openModal(title,html){$("#modalRoot").innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-head"><h3>${title}</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>${html}</div></div>`}
 function closeModal(){$("#modalRoot").innerHTML=""}
 
-$("#loginForm").onsubmit=async e=>{e.preventDefault();const password=$("#loginPassword").value;const hash=await sha256(password);if(hash!==cfg.LOCAL_PASSWORD_HASH){toast("Incorrect shop password",true);return}if($("#rememberLogin")?.checked) localStorage.setItem("shopflow_unlocked","1");else localStorage.removeItem("shopflow_unlocked");enterApp(false)};
+$("#loginForm").onsubmit=async e=>{
+  e.preventDefault();
+
+  const password=$("#loginPassword").value;
+
+  if(!password){
+    toast("Enter shop password",true);
+    return;
+  }
+
+  const enteredHash=md5(password).toLowerCase();
+  const expectedHash=String(cfg.LOCAL_PASSWORD_HASH||"").toLowerCase();
+
+  if(enteredHash!==expectedHash){
+    toast("Incorrect shop password",true);
+    $("#loginPassword").focus();
+    return;
+  }
+
+  if($("#rememberLogin")?.checked){
+    localStorage.setItem("shopflow_unlocked","1");
+  }else{
+    localStorage.removeItem("shopflow_unlocked");
+  }
+
+  enterApp(false);
+};
 $("#previewBtn").onclick=()=>{localStorage.removeItem("shopflow_unlocked");enterApp(true)};
 $("#logoutBtn").onclick=()=>{localStorage.removeItem("shopflow_unlocked");showAuth();$("#loginPassword").value=""};
 $("#refreshBtn").onclick=async()=>{await loadAll();renderPage();toast("Refreshed")};
